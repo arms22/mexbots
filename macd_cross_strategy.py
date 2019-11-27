@@ -46,20 +46,20 @@ def macd_cross_strategy(ticker, ohlcv, position, balance, strategy):
         strategy.cancel('S')
 
     # ATRによるドテンロング
-    sma_trends = last(sma(ohlcv.close, 120))
-    c = last(ohlcv.close)
-    logger.info('SMA Trends Close:{0}  MA:{1}'.format(c, sma_trends))
-    if c > sma_trends:
-        range = last(atr(ohlcv.close, ohlcv.high, ohlcv.low, 5)) * 1.6
-        stop_price = int(last(ohlcv.high) + range)
-        logger.info('ATR Range {0} Stop {1}'.format(range, stop_price))
-    else:
-        stop_price = 0
-
-    if stop_price > 0 and position.currentQty < 0 and not long_entry and not short_entry:
-        strategy.entry('doten L', side='buy', qty=qty_lot, stop=stop_price)
-    else:
-        strategy.cancel('doten L')
+    if prm.use_atr_stop:
+        sma_trends = last(sma(ohlcv.close, 120))
+        c = last(ohlcv.close)
+        logger.info('SMA Trends Close:{0}  MA:{1}'.format(c, sma_trends))
+        if c > sma_trends:
+            range = last(atr(ohlcv.close, ohlcv.high, ohlcv.low, 5)) * 1.6
+            stop_price = int(last(ohlcv.high) + range)
+            logger.info('ATR Range {0} Stop {1}'.format(range, stop_price))
+        else:
+            stop_price = 0
+        if stop_price > 0 and position.currentQty < 0 and not long_entry and not short_entry:
+            strategy.entry('doten L', side='buy', qty=qty_lot, stop=stop_price)
+        else:
+            strategy.cancel('doten L')
 
 if __name__ == '__main__':
     import argparse

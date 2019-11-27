@@ -1,9 +1,18 @@
 {
+	"ETH/USD": {
+		"fastlen": 10,
+		"slowlen": 26,
+		"siglen": 23,
+		"percent": 0.5,
+		"use_atr_stop": true,
+		"logfilename": "macd-cross-ethusd.log"
+	},
 	"XRPM18": {
 		"fastlen": 20,
 		"slowlen": 34,
 		"siglen": 5,
 		"percent": 0.4,
+		"use_atr_stop": false,
 		"logfilename": "macd-cross-xrpm18.log"
 	},
 	"BTC/USD": {
@@ -11,6 +20,7 @@
 		"slowlen": 27,
 		"siglen": 13,
 		"percent": 1.0,
+		"use_atr_stop": true,
 		"logfilename": "macd-cross-btcusd.log"
 	}
 }
