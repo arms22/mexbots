@@ -9,9 +9,9 @@ premium = '.ETHUSDPI'
 spot_symbol = '.BETHXBT'
 
 entry_time = {
-    (time( 3,45), time( 3,59)),
-    (time(11,45), time(11,59)),
-    (time(19,45), time(19,59)),
+    (time( 3,45), time( 4,00)),
+    (time(11,45), time(12,00)),
+    (time(19,45), time(20,00)),
 }
 
 sell_entry_fr = 0.025
@@ -23,7 +23,7 @@ def can_entry(time_table):
     t = datetime.utcnow().time()
     result = False
     for s, e in time_table:
-        if t >= s and t <= e:
+        if t >= s and t < e:
             result = True
             break
     return result
