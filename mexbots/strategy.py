@@ -114,7 +114,7 @@ class Strategy:
     def fetch_ticker_ws(self):
         trade = self.ws.recent_trades()[-1]
         ticker = dotdict(self.ws.get_ticker())
-        ticker.datetime = pd.to_datetime(trade['timestamp'])
+        ticker.datetime = pd.to_datetime(trade['timestamp'],utc=True)
         self.logger.info("TICK: bid {bid} ask {ask} last {last}".format(**ticker))
         return ticker
 
@@ -135,7 +135,7 @@ class Strategy:
         }
         res = self.exchange.publicGetTradeBucketed(req)
         df = pd.DataFrame(res)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'],utc=True)
         df.set_index('timestamp', inplace=True)
         if rsinf['resample']:
             rule = timeframe
@@ -487,7 +487,7 @@ class Strategy:
                     self.balance = self.fetch_balance()
 
                 # 足取得（足確定後取得）
-                self.update_ohlcv(ticker_time=datetime.utcnow())
+                self.update_ohlcv(ticker_time=datetime.now(timezone.utc))
 
                 # メインロジックコール
                 arg = {
