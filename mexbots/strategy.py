@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from time import sleep
 from datetime import datetime, timedelta, timezone
+from collections import defaultdict
 import sys
 import logging
 import logging.config
@@ -38,16 +39,16 @@ def excahge_error(func):
 
 class Strategy:
     resampleInfo = {
-         '1m': { 'binSize' : '1m', 'resample': False, 'count': 100, 'delta':timedelta(minutes=1)  },
+         '1m': { 'binSize' : '1m', 'resample': False, 'count': 200, 'delta':timedelta(minutes=1)  },
          '3m': { 'binSize' : '1m', 'resample': True,  'count': 120, 'delta':timedelta(minutes=1)  },
-         '5m': { 'binSize' : '5m', 'resample': False, 'count': 100, 'delta':timedelta(minutes=5)  },
+         '5m': { 'binSize' : '5m', 'resample': False, 'count': 200, 'delta':timedelta(minutes=5)  },
         '15m': { 'binSize' : '5m', 'resample': True,  'count': 120, 'delta':timedelta(minutes=5) },
         '30m': { 'binSize' : '5m', 'resample': True,  'count': 120, 'delta':timedelta(minutes=5) },
         '45m': { 'binSize' : '5m', 'resample': True,  'count': 120, 'delta':timedelta(minutes=5) },
          '1h': { 'binSize' : '1h', 'resample': False, 'count': 200, 'delta':timedelta(hours=1)    },
-         '2h': { 'binSize' : '1h', 'resample': True,  'count': 100, 'delta':timedelta(hours=1)    },
-         '4h': { 'binSize' : '1h', 'resample': True,  'count': 100, 'delta':timedelta(hours=1)    },
-         '1d': { 'binSize' : '1d', 'resample': False, 'count': 100, 'delta':timedelta(days=1)     },
+         '2h': { 'binSize' : '1h', 'resample': True,  'count': 200, 'delta':timedelta(hours=1)    },
+         '4h': { 'binSize' : '1h', 'resample': True,  'count': 200, 'delta':timedelta(hours=1)    },
+         '1d': { 'binSize' : '1d', 'resample': False, 'count': 200, 'delta':timedelta(days=1)     },
     }
 
     def __init__(self, yourlogic, interval=60):
@@ -102,19 +103,13 @@ class Strategy:
         # ログ設定
         self.logger = logging.getLogger(__name__)
 
-
-    def fetch_ticker(self, symbol=None, timeframe=None):
+    def fetch_tickers(self, symbol=None):
         symbol = symbol or self.settings.symbol
-        timeframe = timeframe or self.settings.timeframe
-        book = self.exchange.fetch_order_book(symbol, limit=1)
-        trade = self.exchange.fetch_trades(symbol, limit=1, params={'reverse':True})
-        ticker = dotdict()
-        ticker.bid = book['bids'][0][0]
-        ticker.ask = book['asks'][0][0]
-        ticker.last = trade[0]['price']
-        ticker.datetime = pd.to_datetime(trade[0]['datetime'])
-        self.logger.info("TICK: bid {bid} ask {ask} last {last}".format(**ticker))
-        return ticker
+        res = self.exchange.fetch_tickers()
+        tickers = {k:dotdict(v) for k,v in res.items()}
+        primary = tickers[symbol]
+        self.logger.info("{symbol}: bid {bid} ask {ask} last {last}".format(**primary))
+        return primary, tickers
 
     def fetch_ticker_ws(self):
         trade = self.ws.recent_trades()[-1]
@@ -147,32 +142,29 @@ class Strategy:
             rule = rule.replace('m','T')
             rule = rule.replace('d','D')
             df = df.resample(rule=rule, closed='right').agg({'open':'first','high':'max','low':'min','close':'last','volume':'sum'})
-        self.logger.info("OHLCV: {open} {high} {low} {close} {volume}".format(**df.iloc[-1]))
+        self.logger.info("{symbol}: O {open} H {high} L {low} C {close} V {volume}".format(**df.iloc[-1]))
         return df
 
-    def fetch_position(self, symbol=None):
+    def fetch_positions(self, symbol=None):
         """現在のポジションを取得"""
         symbol = symbol or self.settings.symbol
         res = self.exchange.privateGetPosition()
-        pos = [x for x in res if x['symbol'] == self.exchange.market(symbol)['id']]
-        if len(pos):
-            pos = dotdict(pos[0])
-            pos.timestamp = pd.to_datetime(pos.timestamp)
-        else:
-            pos = dotdict()
-            pos.currentQty = 0
-            pos.avgCostPrice = 0
-            pos.unrealisedPnl = 0
-            pos.unrealisedPnlPcnt = 0
-            pos.realisedPnl = 0
-        pos.unrealisedPnlPcnt100 = pos.unrealisedPnlPcnt * 100
-        self.logger.info("POSITION: qty {currentQty} cost {avgCostPrice} pnl {unrealisedPnl}({unrealisedPnlPcnt100:.2f}%) {realisedPnl}".format(**pos))
-        return pos
+        empty = dotdict()
+        empty.currentQty = 0
+        empty.avgCostPrice = 0
+        empty.unrealisedPnl = 0
+        empty.unrealisedPnlPcnt = 0
+        empty.realisedPnl = 0
+        empty.symbol = symbol
+        positions = defaultdict(lambda:empty)
+        positions.update({x['symbol']:dotdict(x) for x in res})
+        primary = positions[self.exchange.market(symbol)['id']]
+        self.logger.info("{symbol}: qty {currentQty} cost {avgCostPrice} pnl {unrealisedPnl} {realisedPnl}".format(**primary))
+        return primary, positions
 
     def fetch_position_ws(self):
         pos = dotdict(self.ws.position())
-        pos.unrealisedPnlPcnt100 = pos.unrealisedPnlPcnt * 100
-        self.logger.info("POSITION: qty {currentQty} cost {avgCostPrice} pnl {unrealisedPnl}({unrealisedPnlPcnt100:.2f}%) {realisedPnl}".format(**pos))
+        self.logger.info("POSITION: qty {currentQty} cost {avgCostPrice} pnl {unrealisedPnl} {realisedPnl}".format(**pos))
         return pos
 
     def fetch_balance(self):
@@ -241,7 +233,7 @@ class Strategy:
         for r in res:
             self.logger.info("CANCEL: {orderID} {side} {orderQty} {price}".format(**r))
 
-    def create_order(self, side, qty, limit, stop, trailing_offset, symbol):
+    def create_order(self, side, qty, limit, stop, trailing_offset, post_only, symbol):
         type = 'market'
         params = {}
         if stop is not None and limit is not None:
@@ -256,6 +248,8 @@ class Strategy:
         elif limit is not None:
             type = 'limit'
             params['price'] = limit
+            if post_only:
+                params['execInst'] = 'ParticipateDoNotInitiate'
         if trailing_offset is not None:
             params['pegPriceType'] = 'TrailingStopPeg'
             params['pegOffsetValue'] = trailing_offset
@@ -282,7 +276,7 @@ class Strategy:
         self.logger.info("EDIT: {orderID} {side} {orderQty} {price}({stopPx})".format(**res['info']))
         return dotdict(res)
 
-    def order(self, myid, side, qty, limit=None, stop=None, trailing_offset=None, symbol=None):
+    def order(self, myid, side, qty, limit=None, stop=None, trailing_offset=None, post_only=False, symbol=None):
         """注文"""
 
         qty_total = qty
@@ -327,7 +321,7 @@ class Strategy:
                     if (order_type != order.type) or (order.type == 'stoplimit' and order.info.triggered == 'StopOrderTriggered'):
                         # 注文キャンセルに失敗した場合、ポジション取得からやり直す
                         self.exchange.cancel_order(order_id)
-                        order = self.create_order(side, qty, limit, stop, trailing_offset, symbol)
+                        order = self.create_order(side, qty, limit, stop, trailing_offset, post_only, symbol)
                     else:
                         # 指値・ストップ価格・数量に変更がある場合のみ編集を行う
                         if ((order.info.price is not None and order.info.price != limit) or
@@ -337,11 +331,11 @@ class Strategy:
 
                 # 約定済みの場合、新規注文
                 else:
-                    order = self.create_order(side, qty, limit, stop, trailing_offset, symbol)
+                    order = self.create_order(side, qty, limit, stop, trailing_offset, post_only, symbol)
 
             # 注文がない場合、新規注文
             else:
-                order = self.create_order(side, qty, limit, stop, trailing_offset, symbol)
+                order = self.create_order(side, qty, limit, stop, trailing_offset, post_only, symbol)
 
             self.orders[myid] = order
 
@@ -484,16 +478,16 @@ class Strategy:
                     self.balance = self.fetch_balance_ws()
                 else:
                     # ティッカー取得
-                    self.ticker = self.fetch_ticker()
+                    self.ticker, self.ticker_all = self.fetch_tickers()
 
                     # ポジション取得
-                    self.position = self.fetch_position()
+                    self.position, self.position_all = self.fetch_positions()
 
                     # 資金情報取得
                     self.balance = self.fetch_balance()
 
                 # 足取得（足確定後取得）
-                self.update_ohlcv(ticker_time=self.ticker.datetime)
+                self.update_ohlcv(ticker_time=datetime.utcnow())
 
                 # メインロジックコール
                 arg = {
