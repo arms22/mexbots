@@ -157,8 +157,11 @@ class Strategy:
         empty.realisedPnl = 0
         empty.symbol = symbol
         positions = defaultdict(lambda:empty)
-        positions.update({x['symbol']:dotdict(x) for x in res})
-        primary = positions[self.exchange.market(symbol)['id']]
+        for p in res:
+            sym = self.exchange.find_symbol(p['symbol'])
+            p['symbol'] = sym
+            positions[sym] = dotdict(p)
+        primary = positions[symbol]
         self.logger.info("{symbol}: qty {currentQty} cost {avgCostPrice} pnl {unrealisedPnl} {realisedPnl}".format(**primary))
         return primary, positions
 

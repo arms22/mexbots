@@ -1,14 +1,14 @@
 {
-    "ETH/USD": {
-        "sub_symbol":"ETHH20",
-        "sub_quanty":3,
-        "sub_multiplier":0.000001,
-		"logfilename": "delta_neutral_ethusd.log"
-    },
-    "XRP/USD": {
-        "sub_symbol":"XRPH20",
-        "sub_quanty":1000,
-        "sub_multiplier":0.0002,
-		"logfilename": "delta_neutral_xrpusd.log"
+    "contracts":{
+        "ETH/USD": {
+            "sub_symbol":"ETHH20",
+            "sub_quanty":3,
+            "sub_multiplier":0.000001
+        },
+        "XRP/USD": {
+            "sub_symbol":"XRPH20",
+            "sub_quanty":1500,
+            "sub_multiplier":0.0002
+        }
     }
 }
