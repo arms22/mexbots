@@ -22,11 +22,11 @@ def sub_logic(main_symbol, sub_symbol, sub_quanty, sub_multiplier, strategy):
     short_size = max(-main_position.currentQty,0)
     sub_long_size = max(sub_position.currentQty,0)
 
-    # Take Profit
-    if main_position.unrealisedPnlPcnt >= 0.025:
-        sell_qty = 0
-    if sub_position.unrealisedPnlPcnt >= 0.025:
-        sub_quanty = 0
+    # # Take Profit
+    # if main_position.unrealisedPnlPcnt >= 0.025:
+    #     sell_qty = 0
+    # if sub_position.unrealisedPnlPcnt >= 0.025:
+    #     sub_quanty = 0
 
     logger.info('{symbol}: qty {currentQty} cost {avgCostPrice} pnl {unrealisedPnl} {unrealisedPnlPcnt}'.format(**main_position))
     logger.info('{symbol}: qty {currentQty} cost {avgCostPrice} pnl {unrealisedPnl} {unrealisedPnlPcnt}'.format(**sub_position))
@@ -35,26 +35,26 @@ def sub_logic(main_symbol, sub_symbol, sub_quanty, sub_multiplier, strategy):
     # Main Order
     if short_size < sell_qty*0.98:
         qty = min(sell_qty-short_size, sell_qty)
-        strategy.order('S','sell',qty=qty,limit=main_ticker.ask,post_only=True,symbol=main_symbol)
+        strategy.order(main_symbol+'S','sell',qty=qty,limit=main_ticker.ask,post_only=True,symbol=main_symbol)
     else:
-        strategy.cancel('S')
+        strategy.cancel(main_symbol+'S')
     if short_size > sell_qty*1.02:
         qty = short_size - sell_qty
-        strategy.order('L','buy',qty=qty,limit=main_ticker.bid,post_only=True,symbol=main_symbol)
+        strategy.order(main_symbol+'Sc','buy',qty=qty,limit=main_ticker.bid,post_only=True,symbol=main_symbol)
     else:
-        strategy.cancel('L')
+        strategy.cancel(main_symbol+'Sc')
 
     # Sub Order
     if sub_long_size < sub_quanty:
         qty = min(sub_quanty-sub_long_size, sub_quanty)
-        strategy.order('sL','buy',qty=qty,limit=sub_ticker.bid,post_only=True,symbol=sub_symbol)
+        strategy.order(sub_symbol+'L','buy',qty=qty,limit=sub_ticker.bid,post_only=True,symbol=sub_symbol)
     else:
-        strategy.cancel('sL')
+        strategy.cancel(sub_symbol+'L')
     if sub_long_size > sub_quanty:
         qty = sub_long_size - sub_quanty
-        strategy.order('sS','sell',qty=qty,limit=sub_ticker.ask,post_only=True,symbol=sub_symbol)
+        strategy.order(sub_symbol+'Lc','sell',qty=qty,limit=sub_ticker.ask,post_only=True,symbol=sub_symbol)
     else:
-        strategy.cancel('sS')
+        strategy.cancel(sub_symbol+'Lc')
 
 def mylogic(ticker, ohlcv, position, balance, strategy):
 
